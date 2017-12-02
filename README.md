@@ -24,18 +24,15 @@ From that target's `main.swift`, make a call to
 is the main entry point to `lite`'s test running.
 
 It takes 4 arguments:
-- substitutions: The mapping of substitutions to make inside each run
-                 line. A substitution looks for a string beginning with
-                 `'%'` and replaces that whole string with the substituted
-                 value.
-- pathExtensions: The set of path extensions that Lite should search
-                  for when discovering tests.
-- testDirPath: The directory in which Lite should look for tests. Lite
-               will perform a deep search through this directory for
-               all files whose extension exists in `pathExtensions` and
-               which have valid RUN lines.
-- testLinePrefix: The prefix before `RUN:` in a file. This is almost
-                  always your specific langauge's line comment syntax.
+
+| Argument | Description |
+|----------|-------------|
+| `substitutions` | The mapping of substitutions to make inside each run line. A substitution looks for a string beginning with `'%'` and replaces that whole string with the substituted value. |
+| `pathExtensions` | The set of path extensions that Lite should search for when discovering tests. |
+| `testDirPath`  | The directory in which Lite should look for tests. Lite will perform a deep search through this directory for all files whose extension exists in `pathExtensions` and which have valid RUN lines. |
+| `testLinePrefix` | The prefix before `RUN:` in a file. This is almost always your specific langauge's line comment syntax. |
+
+> Note: An example consumer of `Lite` exists in this repository as `lite-test`.
 
 Once you've defined that, you're ready to start running your tester!
 
