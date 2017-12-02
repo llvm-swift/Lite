@@ -6,7 +6,7 @@ import LiteSupport
 
 /// Runs `lite` looking for `.test` files and executing them.
 do {
-  let allPassed = try runLite(substitutions: ["echo": "echo"],
+  let allPassed = try runLite(substitutions: [("echo", "echo")],
                               pathExtensions: ["test"],
                               testDirPath: nil,
                               testLinePrefix: "//")

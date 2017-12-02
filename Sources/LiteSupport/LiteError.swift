@@ -11,6 +11,10 @@ import Foundation
 public struct LiteError: Error {
   public let message: String
 
+  static func invalidSubstitution(_ string: String) -> LiteError {
+    return LiteError(message: "invalid substitution: \(string)")
+  }
+
   /// The test directory could not be found on the file system.
   static func couldNotOpenTestDir(_ path: String) -> LiteError {
     return LiteError(message: "could not open test directory at '\(path)'")

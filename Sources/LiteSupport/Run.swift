@@ -11,8 +11,9 @@ import Foundation
 /// matching path extensions, run them, and report their output to stderr.
 /// - Parameters:
 ///   - substitutions: The mapping of substitutions to make inside each run
-///                    line. A substitution looks for a string beginning with
-///                    `'%'`
+///                    line, in order. A substitution looks for a string of the
+///                    form `'%<keyword>'` and replaces it with the substituted
+///                    value.
 ///   - pathExtensions: The set of path extensions that Lite should search
 ///                     for when discovering tests.
 ///   - testDirPath: The directory in which Lite should look for tests. Lite
@@ -23,7 +24,7 @@ import Foundation
 ///                     always your specific langauge's line comment syntax.
 /// - Returns: `true` if all tests passed, `false` if any failed.
 /// - Throws: `LiteError` if there was any issue running tests.
-public func runLite(substitutions: [String: String],
+public func runLite(substitutions: [(String, String)],
                     pathExtensions: Set<String>,
                     testDirPath: String?,
                     testLinePrefix: String) throws -> Bool {

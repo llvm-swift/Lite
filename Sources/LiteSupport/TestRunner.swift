@@ -26,7 +26,7 @@ class TestRunner {
   let testDir: URL
 
   /// The set of substitutions to apply to each run line.
-  let substitutions: [String: String]
+  let substitutor: Substitutor
 
   /// The set of path extensions containing test files.
   let pathExtensions: Set<String>
@@ -37,7 +37,7 @@ class TestRunner {
   /// Creates a test runner that will execute all tests in the provided
   /// directory.
   /// - throws: A LiteError if the test directory is invalid.
-  init(testDirPath: String?, substitutions: [String: String],
+  init(testDirPath: String?, substitutions: [(String, String)],
        pathExtensions: Set<String>, testLinePrefix: String) throws {
     let fm = FileManager.default
     var isDir: ObjCBool = false
@@ -50,7 +50,7 @@ class TestRunner {
       throw LiteError.testDirIsNotDirectory(testDirPath)
     }
     self.testDir = URL(fileURLWithPath: testDirPath, isDirectory: true)
-    self.substitutions = substitutions
+    self.substitutor = try Substitutor(substitutions: substitutions)
     self.pathExtensions = pathExtensions
     self.testLinePrefix = testLinePrefix
   }
@@ -153,7 +153,7 @@ class TestRunner {
         }
         print("    command line:")
         let command = file.makeCommandLine(result.line,
-                                           substitutions: substitutions)
+                                           substitutor: substitutor)
         print("      \(command)")
       }
     }
@@ -165,7 +165,7 @@ class TestRunner {
     var results = [TestResult]()
     for line in file.runLines {
       let start = Date()
-      let bash = file.makeCommandLine(line, substitutions: substitutions)
+      let bash = file.makeCommandLine(line, substitutor: substitutor)
       let output = SwiftShell.main.run(bash: bash)
       let end = Date()
       let passed = line.isFailure(output.exitcode)
