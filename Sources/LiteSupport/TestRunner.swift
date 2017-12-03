@@ -139,6 +139,7 @@ class TestRunner {
       } else {
         failures += 1
         print("  \("𝗫".red.bold) \(result.line.asString) (\(timeStr))")
+        print("    exit status: \(result.exitStatus)")
         if !result.output.stderror.isEmpty {
           print("    stderr:")
           let lines = result.output.stderror.split(separator: "\n")
@@ -168,11 +169,11 @@ class TestRunner {
       let bash = file.makeCommandLine(line, substitutor: substitutor)
       let output = SwiftShell.main.run(bash: bash)
       let end = Date()
-      let passed = line.isFailure(output.exitcode)
-      results.append(TestResult(line: line, passed: passed,
+      results.append(TestResult(line: line,
                                 output: output,
                                 executionTime: end.timeIntervalSince(start),
-                                file: file.url))
+                                file: file.url,
+                                exitStatus: Int(output.exitcode)))
     }
     return results
   }

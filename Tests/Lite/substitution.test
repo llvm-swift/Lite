@@ -1,1 +1,1 @@
-// RUN: %echo "hello world" %s %s.foo %S
+// RUN: %echo "hello world" %s %s.foo %S > %t && false

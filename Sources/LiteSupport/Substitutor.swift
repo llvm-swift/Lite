@@ -13,10 +13,25 @@ extension String {
   }
 }
 
+/// Makes a temporary directory to be used with `%T`.
+private func makeTemporaryDirectory() -> URL {
+  let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
+                  .appendingPathComponent(UUID().uuidString)
+  try! FileManager.default.createDirectory(at: tmpDir,
+                                           withIntermediateDirectories: true,
+                                           attributes: nil)
+  return tmpDir
+}
+
 class Substitutor {
   var regexes = [(NSRegularExpression, String)]()
+  lazy private(set) var tempDir = makeTemporaryDirectory()
   let fileRegex = try! NSRegularExpression(pattern: "%s")
   let directoryRegex = try! NSRegularExpression(pattern: "%S")
+  let tmpFileRegex = try! NSRegularExpression(pattern: "%t")
+  let tmpDirectoryRegex = try! NSRegularExpression(pattern: "%T")
+
+  private var tmpDirMap = [URL: URL]()
 
   init(substitutions: [(String, String)]) throws {
     let regexes =
@@ -31,6 +46,13 @@ class Substitutor {
     self.regexes = regexes
   }
 
+  func tempFile(for file: URL) -> URL {
+    if let tmpFile = tmpDirMap[file] { return tmpFile }
+    let tmpFile = tempDir.appendingPathComponent(UUID().uuidString)
+    tmpDirMap[file] = tmpFile
+    return tmpFile
+  }
+
   func substitute(_ line: String, in file: URL) -> String {
     let line = NSMutableString(string: line)
     for (regex, substitution) in regexes {
@@ -39,6 +61,14 @@ class Substitutor {
 
     // Apply the `%s` -> file path substitution
     applySubstitution(fileRegex, line: line, substitution: file.path.quoted)
+
+    // Apply the `%t` -> temp file path substitution
+    let tempPath = tempFile(for: file).path.quoted
+    applySubstitution(tmpFileRegex, line: line, substitution: tempPath)
+
+    // Apply the `%T` -> temp dir substitution
+    applySubstitution(tmpDirectoryRegex, line: line,
+                      substitution: tempDir.path.quoted)
 
     // Apply the `%S` -> file directory substitution
     let dir = file.deletingLastPathComponent().path

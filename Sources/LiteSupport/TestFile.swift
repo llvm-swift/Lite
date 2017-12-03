@@ -14,9 +14,6 @@ struct TestResult {
   /// The run line comprising this test.
   let line: RunLine
 
-  /// Whether this test passed or failed.
-  let passed: Bool
-
   /// The output from running this test.
   let output: RunOutput
 
@@ -25,6 +22,14 @@ struct TestResult {
 
   /// The file being executed
   let file: URL
+
+  /// The exit status code of the underlying process.
+  let exitStatus: Int
+
+  /// Whether this test passed or failed.
+  var passed: Bool {
+    return line.isFailure(exitStatus)
+  }
 }
 
 /// Represents a file containing at least one `lite` run line.
