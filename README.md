@@ -46,6 +46,8 @@ swift run lite
 
 Harlan Haskins ([@harlanhaskins](https://github.com/harlanhaskins))
 
+Robert Widmann ([@codafi](https://github.com/codafi))
+
 ## License
 
 This project is released under the MIT license, a copy of which is avaialable
