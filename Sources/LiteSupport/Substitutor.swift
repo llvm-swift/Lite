@@ -74,7 +74,8 @@ class Substitutor {
     let dir = file.deletingLastPathComponent().path
     applySubstitution(directoryRegex, line: line, substitution: dir.quoted)
 
-    return line as String
+    // Convert NSMutableString to String on both macOS and Linux
+    return line.description
   }
 
   func applySubstitution(_ regex: NSRegularExpression, line: NSMutableString,

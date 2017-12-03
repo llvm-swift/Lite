@@ -8,7 +8,7 @@
 import Foundation
 
 /// Diagnostic messages that `lite` might throw.
-public struct LiteError: Error {
+public struct LiteError: Error, CustomStringConvertible {
   public let message: String
 
   static func invalidSubstitution(_ string: String) -> LiteError {
@@ -23,5 +23,9 @@ public struct LiteError: Error {
   /// The test directory is not actually a directory.
   static func testDirIsNotDirectory(_ path: String) -> LiteError {
     return LiteError(message: "'\(path)' is not a directory")
+  }
+
+  public var description: String {
+    return message
   }
 }
