@@ -7,17 +7,33 @@
 
 import Foundation
 
-/// A Run line is a line in a Lite test file that contains a set of command-line
-/// arguments to pass to a `silt` program.
+/// A Run line is a line in a Lite test file that contains a bash command with
+/// substitutions.
 struct RunLine {
-  /// The command, either `RUN:` or `RUN-NOT:`.
+  /// The command, either `RUN:`, `RUN-NOT:`, or `RUN-XFAIL`.
   enum Command {
     /// Runs silt with the provided arguments
     case run
 
-    /// Runs silt with the provided arguments and consider a non-zero exit code
+    /// Runs the run line and considers a non-zero exit code
     /// as a success.
     case runNot
+
+    /// Runs the run line and considers a non-zero exit code a failure, but
+    /// an expected failure that doesn't disqualify the build.
+    case runXfail
+  }
+
+  /// The possible result for running a line.
+  enum Result {
+    /// The run line passed, as expected.
+    case pass
+
+    /// The run line failed unexpectedly.
+    case fail
+
+    /// The run line failed expectedly.
+    case xFail
   }
 
   /// The command to execute.
@@ -32,6 +48,7 @@ struct RunLine {
     switch command {
     case .run: pieces.append("RUN:")
     case .runNot: pieces.append("RUN-NOT:")
+    case .runXfail: pieces.append("RUN-XFAIL:")
     }
     pieces += arguments
     return pieces.joined(separator: " ")
@@ -39,10 +56,11 @@ struct RunLine {
 
   /// Determines if a given process exit code is a failure or success, depending
   /// on the run line's command.
-  func isFailure(_ status: Int) -> Bool {
+  func result(_ status: Int) -> Result {
     switch command {
-    case .run: return status == 0
-    case .runNot: return status != 0
+    case .run: return status == 0 ? .pass : .fail
+    case .runNot: return status != 0 ? .pass : .fail
+    case .runXfail: return status != 0 ? .xFail : .fail
     }
   }
 }
@@ -71,6 +89,7 @@ enum RunLineParser {
       switch command {
       case "RUN": cmd = .run
       case "RUN-NOT": cmd = .runNot
+      case "RUN-XFAIL": cmd = .runXfail
       default: continue
       }
       lines.append(RunLine(command: cmd, arguments: args))

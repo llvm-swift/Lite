@@ -27,8 +27,8 @@ struct TestResult {
   let exitStatus: Int
 
   /// Whether this test passed or failed.
-  var passed: Bool {
-    return line.isFailure(exitStatus)
+  var result: RunLine.Result {
+    return line.result(exitStatus)
   }
 }
 

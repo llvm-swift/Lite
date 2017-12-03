@@ -83,32 +83,42 @@ class TestRunner {
     let prefixLen = commonPrefix.count
     var passes = 0
     var failures = 0
+    var xFailures = 0
     var time = 0.0
     for file in files {
       let results = try run(file: file)
       resultMap[file.url] = results
       handleResults(file, results: results, prefixLen: prefixLen,
-                    passes: &passes, failures: &failures, time: &time)
+                    passes: &passes, failures: &failures,
+                    xFailures: &xFailures, time: &time)
     }
 
-    printSummary(passes: passes, failures: failures, time: time)
+    printSummary(passes: passes, failures: failures,
+                 xFailures: xFailures, time: time)
     return failures == 0
   }
 
 
-  func printSummary(passes: Int, failures: Int, time: TimeInterval) {
+  func printSummary(passes: Int, failures: Int,
+                    xFailures: Int, time: TimeInterval) {
     let total = passes + failures
     let testDesc = "\(total) test\(total == 1 ? "" : "s")".bold
     var passDesc = "\(passes) pass\(passes == 1 ? "" : "es")".bold
     var failDesc = "\(failures) failure\(failures == 1 ? "" : "s")".bold
+    var xFailDesc =
+      "\(xFailures) expected failure\(xFailures == 1 ? "" : "s")".bold
     if passes > 0 {
       passDesc = passDesc.green
     }
     if failures > 0 {
       failDesc = failDesc.red
     }
+    if xFailures > 0 {
+      xFailDesc = xFailDesc.yellow
+    }
     let timeStr = time.formatted.cyan.bold
-    print("Executed \(testDesc) in \(timeStr) with \(passDesc) and \(failDesc)")
+    print("Executed \(testDesc) in \(timeStr) with " +
+          "\(passDesc), \(failDesc), and \(xFailDesc)")
 
     if failures == 0 {
       print("All tests passed! 🎉".green.bold)
@@ -118,25 +128,33 @@ class TestRunner {
   /// Prints individual test results for one specific file.
   func handleResults(_ file: TestFile, results: [TestResult],
                      prefixLen: Int, passes: inout Int,
-                     failures: inout Int, time: inout TimeInterval) {
+                     failures: inout Int, xFailures: inout Int,
+                     time: inout TimeInterval) {
     let path = file.url.path
     let suffixIdx = path.index(path.startIndex, offsetBy: prefixLen,
                                limitedBy: path.endIndex)
     let shortName = suffixIdx.map { path.suffix(from: $0) } ?? Substring(path)
-    let allPassed = !results.contains { !$0.passed }
-    if allPassed {
-      print("\("✔".green.bold) \(shortName)")
-    } else {
+    let anyXFails = results.contains { $0.result == .xFail }
+    let anyFails = results.contains { $0.result == .fail }
+    if anyFails {
       print("\("𝗫".red.bold) \(shortName)")
+    } else if anyXFails {
+      print("⚠️  \(shortName)")
+    } else {
+      print("\("✔".green.bold) \(shortName)")
     }
 
     for result in results {
       time += result.executionTime
       let timeStr = result.executionTime.formatted.cyan
-      if result.passed {
+      switch result.result {
+      case .pass:
         passes += 1
         print("  \("✔".green.bold) \(result.line.asString) (\(timeStr))")
-      } else {
+      case .xFail:
+        xFailures += 1
+        print("  ⚠️  \(result.line.asString) (\(timeStr))")
+      case .fail:
         failures += 1
         print("  \("𝗫".red.bold) \(result.line.asString) (\(timeStr))")
         print("    exit status: \(result.exitStatus)")
