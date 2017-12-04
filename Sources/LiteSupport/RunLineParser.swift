@@ -10,9 +10,10 @@ import Foundation
 /// A Run line is a line in a Lite test file that contains a bash command with
 /// substitutions.
 struct RunLine {
-  /// The command, either `RUN:`, `RUN-NOT:`, or `RUN-XFAIL`.
-  enum Command {
-    /// Runs silt with the provided arguments
+  /// The run mode, one of `RUN:`, `RUN-NOT:`, or `RUN-XFAIL:`.
+  enum Mode {
+    /// Runs the run line with the provided arguments and considers an exit
+    /// code of 0 as a success.
     case run
 
     /// Runs the run line and considers a non-zero exit code
@@ -37,27 +38,26 @@ struct RunLine {
   }
 
   /// The command to execute.
-  let command: Command
+  let mode: Mode
 
-  /// The arguments to pass to `silt`.
-  let arguments: [String]
+  /// The command line to execute
+  let commandLine: String
 
   /// Re-serializes the run command as a string
   var asString: String {
-    var pieces = [String]()
-    switch command {
-    case .run: pieces.append("RUN:")
-    case .runNot: pieces.append("RUN-NOT:")
-    case .runXfail: pieces.append("RUN-XFAIL:")
+    let modeStr: String
+    switch mode {
+    case .run: modeStr = "RUN"
+    case .runNot: modeStr = "RUN-NOT"
+    case .runXfail: modeStr = "RUN-XFAIL"
     }
-    pieces += arguments
-    return pieces.joined(separator: " ")
+    return "\(modeStr): \(commandLine)"
   }
 
   /// Determines if a given process exit code is a failure or success, depending
   /// on the run line's command.
   func result(_ status: Int) -> Result {
-    switch command {
+    switch mode {
     case .run: return status == 0 ? .pass : .fail
     case .runNot: return status != 0 ? .pass : .fail
     case .runXfail: return status != 0 ? .xFail : .fail
@@ -82,17 +82,16 @@ enum RunLineParser {
     for match in regex.matches(in: contents, range: range) {
       let command = nsString.substring(with: match.range(at: 1))
       let runLine = nsString.substring(with: match.range(at: 2))
-      let components = runLine.split(separator: " ")
-      if components.isEmpty { continue }
-      let args = components.map(String.init)
-      let cmd: RunLine.Command
+                            .trimmingCharacters(in: .whitespaces)
+      if runLine.isEmpty { continue }
+      let mode: RunLine.Mode
       switch command {
-      case "RUN": cmd = .run
-      case "RUN-NOT": cmd = .runNot
-      case "RUN-XFAIL": cmd = .runXfail
+      case "RUN": mode = .run
+      case "RUN-NOT": mode = .runNot
+      case "RUN-XFAIL": mode = .runXfail
       default: continue
       }
-      lines.append(RunLine(command: cmd, arguments: args))
+      lines.append(RunLine(mode: mode, commandLine: runLine))
     }
     return lines
   }

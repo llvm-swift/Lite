@@ -43,7 +43,6 @@ struct TestFile {
   /// Creates a reproducible command to execute a run line for this file.
   func makeCommandLine(_ runLine: RunLine,
                        substitutor: Substitutor) -> String {
-    let line = runLine.arguments.joined(separator: " ")
-    return substitutor.substitute(line, in: url)
+    return substitutor.substitute(runLine.commandLine, in: url)
   }
 }
