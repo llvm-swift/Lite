@@ -6,7 +6,6 @@
 /// available in the repository.
 
 import Foundation
-import SwiftShell
 
 /// Represents a test that either passed or failed, and contains the run line
 /// that triggered the result.
@@ -14,8 +13,11 @@ struct TestResult {
   /// The run line comprising this test.
   let line: RunLine
 
-  /// The output from running this test.
-  let output: RunOutput
+  /// The stdout output from running this test.
+  let stdout: String
+
+  /// The stderr output from running this test.
+  let stderr: String
 
   /// The time it took to execute this test from start to finish.
   let executionTime: TimeInterval

@@ -6,6 +6,7 @@
 /// available in the repository.
 
 import Foundation
+import Dispatch
 
 public extension String {
   public var quoted: String {
@@ -31,6 +32,7 @@ class Substitutor {
   let tmpFileRegex = try! NSRegularExpression(pattern: "%t")
   let tmpDirectoryRegex = try! NSRegularExpression(pattern: "%T")
 
+  private let tmpDirQueue = DispatchQueue(label: "tmp-dir-queue")
   private var tmpDirMap = [URL: URL]()
 
   init(substitutions: [(String, String)]) throws {
@@ -47,10 +49,12 @@ class Substitutor {
   }
 
   func tempFile(for file: URL) -> URL {
-    if let tmpFile = tmpDirMap[file] { return tmpFile }
-    let tmpFile = tempDir.appendingPathComponent(UUID().uuidString)
-    tmpDirMap[file] = tmpFile
-    return tmpFile
+    return tmpDirQueue.sync {
+      if let tmpFile = tmpDirMap[file] { return tmpFile }
+      let tmpFile = tempDir.appendingPathComponent(UUID().uuidString)
+      tmpDirMap[file] = tmpFile
+      return tmpFile
+    }
   }
 
   func substitute(_ line: String, in file: URL) -> String {

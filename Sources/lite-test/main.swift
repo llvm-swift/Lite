@@ -9,7 +9,8 @@ do {
   let allPassed = try runLite(substitutions: [("echo", "echo")],
                               pathExtensions: ["test"],
                               testDirPath: nil,
-                              testLinePrefix: "//")
+                              testLinePrefix: "//",
+                              parallelismLevel: .automatic)
   exit(allPassed ? 0 : -1)
 } catch let err as LiteError {
   fputs("error: \(err.message)", stderr)
