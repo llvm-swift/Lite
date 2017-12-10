@@ -22,15 +22,24 @@ import Foundation
 ///                  which have valid RUN lines.
 ///   - testLinePrefix: The prefix before `RUN:` in a file. This is almost
 ///                     always your specific langauge's line comment syntax.
+///   - parallelismLevel: Specifies the amount of parallelism to apply to the
+///                       test running process. Default value is `.none`, but
+///                       you can provide `.automatic` to use the available
+///                       machine cores, or `.explicit(n)` to specify an
+///                       explicit number of parallel tests. This value should
+///                       not exceed the number of hyperthreaded cores on your
+///                       machine, to avoid excessive context switching.
 /// - Returns: `true` if all tests passed, `false` if any failed.
 /// - Throws: `LiteError` if there was any issue running tests.
 public func runLite(substitutions: [(String, String)],
                     pathExtensions: Set<String>,
                     testDirPath: String?,
-                    testLinePrefix: String) throws -> Bool {
+                    testLinePrefix: String,
+                    parallelismLevel: ParallelismLevel = .none) throws -> Bool {
   let testRunner = try TestRunner(testDirPath: testDirPath,
                                   substitutions: substitutions,
                                   pathExtensions: pathExtensions,
-                                  testLinePrefix: testLinePrefix)
+                                  testLinePrefix: testLinePrefix,
+                                  parallelismLevel: parallelismLevel)
   return try testRunner.run()
 }

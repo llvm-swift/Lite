@@ -24,10 +24,10 @@ depends on the Lite support library, `LiteSupport`.
 ### Making a `lite` Target
 
 From that target's `main.swift`, make a call to
-`runLite(substitutions:pathExtensions:testDirPath:testLinePrefix:)`. This call
+`runLite(substitutions:pathExtensions:testDirPath:testLinePrefix:parallelismLevel:)`. This call
 is the main entry point to `lite`'s test running.
 
-It takes 4 arguments:
+It takes 5 arguments:
 
 | Argument | Description |
 |----------|-------------|
@@ -35,6 +35,7 @@ It takes 4 arguments:
 | `pathExtensions` | The set of path extensions that Lite should search for when discovering tests. |
 | `testDirPath`  | The directory in which Lite should look for tests. Lite will perform a deep search through this directory for all files whose extension exists in `pathExtensions` and which have valid RUN lines. |
 | `testLinePrefix` | The prefix before `RUN:` in a file. This is almost always your specific langauge's line comment syntax. |
+| `parallelismLevel` | Specifies the amount of parallelism to apply to the test running process. Default value is `.none`, but you can provide `.automatic` to use the available machine cores, or `.explicit(n)` to specify an explicit number of parallel tests |
 
 > Note: An example consumer of `Lite` exists in this repository as `lite-test`.
 

@@ -7,7 +7,8 @@
 
 import Foundation
 import Rainbow
-import SwiftShell
+import ShellOut
+import Dispatch
 
 #if os(Linux)
 /// HACK: This is needed because on macOS, ObjCBool is a distinct type
@@ -18,10 +19,31 @@ extension ObjCBool {
 }
 #endif
 
+/// Specifies how to parallelize test runs.
+public enum ParallelismLevel {
+  /// Parallelize over an explicit number of cores.
+  case explicit(Int)
+
+  /// Automatically discover the number of cores on the system and use that.
+  case automatic
+
+  /// Do not parallelize.
+  case none
+
+  /// The number of concurrent processes afforded by this level.
+  var numberOfProcesses: Int {
+    switch self {
+    case .explicit(let n): return n
+    case .none: return 1
+    case .automatic: return ProcessInfo.processInfo.processorCount
+    }
+  }
+}
 
 /// TestRunner is responsible for coordinating a set of tests, running them, and
 /// reporting successes and failures.
 class TestRunner {
+
   /// The test directory in which tests reside.
   let testDir: URL
 
@@ -34,11 +56,18 @@ class TestRunner {
   /// The prefix before `RUN` and `RUN-NOT` lines.
   let testLinePrefix: String
 
+  /// The queue to synchronize printing results.
+  let resultQueue = DispatchQueue(label: "test-runner-results")
+
+  /// How to parallelize work.
+  let parallelismLevel: ParallelismLevel
+
   /// Creates a test runner that will execute all tests in the provided
   /// directory.
   /// - throws: A LiteError if the test directory is invalid.
   init(testDirPath: String?, substitutions: [(String, String)],
-       pathExtensions: Set<String>, testLinePrefix: String) throws {
+       pathExtensions: Set<String>, testLinePrefix: String,
+       parallelismLevel: ParallelismLevel) throws {
     let fm = FileManager.default
     var isDir: ObjCBool = false
     let testDirPath =
@@ -53,6 +82,7 @@ class TestRunner {
     self.substitutor = try Substitutor(substitutions: substitutions)
     self.pathExtensions = pathExtensions
     self.testLinePrefix = testLinePrefix
+    self.parallelismLevel = parallelismLevel
   }
 
   func discoverTests() throws -> [TestFile] {
@@ -76,32 +106,51 @@ class TestRunner {
     let files = try discoverTests()
     if files.isEmpty { return true }
 
-    var resultMap = [URL: [TestResult]]()
     let commonPrefix = files.map { $0.url.path }.commonPrefix
-    print("Running all tests in \(commonPrefix.bold)")
+    let workers = parallelismLevel.numberOfProcesses
+    var testDesc = "Running all tests in \(commonPrefix.bold)"
+    switch parallelismLevel {
+    case .automatic, .explicit(_):
+      testDesc += " across \(workers) threads"
+    default: break
+    }
+    print(testDesc)
 
     let prefixLen = commonPrefix.count
-    var passes = 0
-    var failures = 0
-    var xFailures = 0
-    var time = 0.0
+    let executor = ParallelExecutor<[TestResult]>(numberOfWorkers: workers)
+    let realStart = Date()
     for file in files {
-      let results = try run(file: file)
-      resultMap[file.url] = results
-      handleResults(file, results: results, prefixLen: prefixLen,
-                    passes: &passes, failures: &failures,
-                    xFailures: &xFailures, time: &time)
+        executor.addTask {
+          let results = self.run(file: file)
+          self.resultQueue.sync {
+              self.handleResults(file, results: results, prefixLen: prefixLen)
+          }
+          return results
+        }
     }
+    let allResults = executor.waitForResults()
 
-    printSummary(passes: passes, failures: failures,
-                 xFailures: xFailures, time: time)
-    return failures == 0
+    return printSummary(allResults, realStart: realStart)
   }
 
-
-  func printSummary(passes: Int, failures: Int,
-                    xFailures: Int, time: TimeInterval) {
-    let total = passes + failures
+  func printSummary(_ results: [[TestResult]], realStart: Date) -> Bool {
+    var passes = 0, failures = 0, xFailures = 0, total = 0
+    var time = 0.0
+    let realTime = Date().timeIntervalSince(realStart)
+    for fileResults in results {
+      for result in fileResults {
+        time += result.executionTime
+        total += 1
+        switch result.result {
+        case .fail:
+          failures += 1
+        case .pass:
+          passes += 1
+        case .xFail:
+          xFailures += 1
+        }
+      }
+    }
     let testDesc = "\(total) test\(total == 1 ? "" : "s")".bold
     var passDesc = "\(passes) pass\(passes == 1 ? "" : "es")".bold
     var failDesc = "\(failures) failure\(failures == 1 ? "" : "s")".bold
@@ -117,19 +166,25 @@ class TestRunner {
       xFailDesc = xFailDesc.yellow
     }
     let timeStr = time.formatted.cyan.bold
-    print("Executed \(testDesc) in \(timeStr) with " +
-          "\(passDesc), \(failDesc), and \(xFailDesc)")
+    let realTimeStr = realTime.formatted.cyan.bold
+    print("""
+
+          \("Total running time:".bold) \(realTimeStr)
+          \("Total CPU time:".bold)     \(timeStr)
+          Executed \(testDesc) with \(passDesc), \(failDesc), and \(xFailDesc)
+
+          """)
 
     if failures == 0 {
       print("All tests passed! 🎉".green.bold)
+      return true
     }
+    return false
   }
 
   /// Prints individual test results for one specific file.
   func handleResults(_ file: TestFile, results: [TestResult],
-                     prefixLen: Int, passes: inout Int,
-                     failures: inout Int, xFailures: inout Int,
-                     time: inout TimeInterval) {
+                     prefixLen: Int) {
     let path = file.url.path
     let suffixIdx = path.index(path.startIndex, offsetBy: prefixLen,
                                limitedBy: path.endIndex)
@@ -145,29 +200,25 @@ class TestRunner {
     }
 
     for result in results {
-      time += result.executionTime
       let timeStr = result.executionTime.formatted.cyan
       switch result.result {
       case .pass:
-        passes += 1
         print("  \("✔".green.bold) \(result.line.asString) (\(timeStr))")
       case .xFail:
-        xFailures += 1
         print("  ⚠️  \(result.line.asString) (\(timeStr))")
       case .fail:
-        failures += 1
         print("  \("𝗫".red.bold) \(result.line.asString) (\(timeStr))")
         print("    exit status: \(result.exitStatus)")
-        if !result.output.stderror.isEmpty {
+        if !result.stderr.isEmpty {
           print("    stderr:")
-          let lines = result.output.stderror.split(separator: "\n")
-                                            .joined(separator: "\n      ")
+          let lines = result.stderr.split(separator: "\n")
+                                   .joined(separator: "\n      ")
           print("      \(lines)")
         }
-        if !result.output.stdout.isEmpty {
+        if !result.stdout.isEmpty {
           print("    stdout:")
-          let lines = result.output.stdout.split(separator: "\n")
-                                          .joined(separator: "\n      ")
+          let lines = result.stdout.split(separator: "\n")
+                                   .joined(separator: "\n      ")
           print("      \(lines)")
         }
         print("    command line:")
@@ -180,18 +231,32 @@ class TestRunner {
 
   /// Runs all the run lines in a given file and returns a test result
   /// with the individual successes or failures.
-  private func run(file: TestFile) throws -> [TestResult] {
+  private func run(file: TestFile) -> [TestResult] {
     var results = [TestResult]()
     for line in file.runLines {
       let start = Date()
+      let stdout: String
+      let stderr: String
+      let exitCode: Int
       let bash = file.makeCommandLine(line, substitutor: substitutor)
-      let output = SwiftShell.main.run(bash: bash)
+      do {
+        stdout = try shellOut(to: bash)
+        stderr = ""
+        exitCode = 0
+      } catch let error as ShellOutError {
+        stderr = error.message
+        stdout = error.output
+        exitCode = Int(error.terminationStatus)
+      } catch {
+        fatalError("unhandled error")
+      }
       let end = Date()
       results.append(TestResult(line: line,
-                                output: output,
+                                stdout: stdout,
+                                stderr: stderr,
                                 executionTime: end.timeIntervalSince(start),
                                 file: file.url,
-                                exitStatus: Int(output.exitcode)))
+                                exitStatus: exitCode))
     }
     return results
   }
