@@ -11,7 +11,7 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
-    .package(url: "https://github.com/harlanhaskins/ShellOut.git", .branch("on-your-mark-get-set-go")),
+    .package(url: "https://github.com/harlanhaskins/ShellOut.git", from: "2.0.2"),
   ],
   targets: [
     .target(
