@@ -10,15 +10,6 @@ import Rainbow
 import ShellOut
 import Dispatch
 
-#if os(Linux)
-/// HACK: This is needed because on macOS, ObjCBool is a distinct type
-///       from Bool. On Linux, however, it is a typealias.
-extension ObjCBool {
-  /// Converts the ObjCBool value to a Swift Bool.
-  var boolValue: Bool { return self }
-}
-#endif
-
 /// Specifies how to parallelize test runs.
 public enum ParallelismLevel {
   /// Parallelize over an explicit number of cores.
