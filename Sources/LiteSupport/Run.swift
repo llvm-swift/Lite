@@ -35,11 +35,13 @@ public func runLite(substitutions: [(String, String)],
                     pathExtensions: Set<String>,
                     testDirPath: String?,
                     testLinePrefix: String,
-                    parallelismLevel: ParallelismLevel = .none) throws -> Bool {
+                    parallelismLevel: ParallelismLevel = .none,
+                    successMessage: String = "All tests passed! 🎉") throws -> Bool {
   let testRunner = try TestRunner(testDirPath: testDirPath,
                                   substitutions: substitutions,
                                   pathExtensions: pathExtensions,
                                   testLinePrefix: testLinePrefix,
-                                  parallelismLevel: parallelismLevel)
+                                  parallelismLevel: parallelismLevel,
+                                  successMessage: successMessage)
   return try testRunner.run()
 }

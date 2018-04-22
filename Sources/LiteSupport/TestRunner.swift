@@ -53,12 +53,16 @@ class TestRunner {
   /// How to parallelize work.
   let parallelismLevel: ParallelismLevel
 
+  /// The message to print if all the tests passed.
+  let successMessage: String
+
   /// Creates a test runner that will execute all tests in the provided
   /// directory.
   /// - throws: A LiteError if the test directory is invalid.
   init(testDirPath: String?, substitutions: [(String, String)],
        pathExtensions: Set<String>, testLinePrefix: String,
-       parallelismLevel: ParallelismLevel) throws {
+       parallelismLevel: ParallelismLevel,
+       successMessage: String) throws {
     let fm = FileManager.default
     var isDir: ObjCBool = false
     let testDirPath =
@@ -74,6 +78,7 @@ class TestRunner {
     self.pathExtensions = pathExtensions
     self.testLinePrefix = testLinePrefix
     self.parallelismLevel = parallelismLevel
+    self.successMessage = successMessage
   }
 
   func discoverTests() throws -> [TestFile] {
@@ -167,7 +172,7 @@ class TestRunner {
           """)
 
     if failures == 0 {
-      print("All tests passed! 🎉".green.bold)
+      print(successMessage.green.bold)
       return true
     }
     return false
