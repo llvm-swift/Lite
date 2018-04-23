@@ -94,7 +94,7 @@ class TestRunner {
     var files = [TestFile]()
     for case let file as URL in enumerator {
       guard pathExtensions.contains(file.pathExtension) else { continue }
-      let nsPath = file.path as NSString
+      let nsPath = NSString(string: file.path)
       let matchesFilter = filters.contains {
         return $0.numberOfMatches(
           in: file.path,
