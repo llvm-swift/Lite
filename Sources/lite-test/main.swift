@@ -6,11 +6,12 @@ import LiteSupport
 
 /// Runs `lite` looking for `.test` files and executing them.
 do {
-  let allPassed = try runLite(substitutions: [("echo", "echo")],
-                              pathExtensions: ["test"],
-                              testDirPath: nil,
-                              testLinePrefix: "//",
-                              parallelismLevel: .automatic)
+  let allPassed = try runLite(
+    substitutions: [("echo", "echo")],
+    pathExtensions: ["test"],
+    testDirPath: nil,
+    testLinePrefix: "//",
+    parallelismLevel: .automatic)
   exit(allPassed ? 0 : -1)
 } catch let err as LiteError {
   fputs("error: \(err.message)", stderr)

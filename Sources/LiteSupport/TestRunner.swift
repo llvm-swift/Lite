@@ -56,13 +56,18 @@ class TestRunner {
   /// The message to print if all the tests passed.
   let successMessage: String
 
+  /// The set of filters to run over the file names, to refine which tests
+  /// are run.
+  let filters: [NSRegularExpression]
+
   /// Creates a test runner that will execute all tests in the provided
   /// directory.
   /// - throws: A LiteError if the test directory is invalid.
   init(testDirPath: String?, substitutions: [(String, String)],
        pathExtensions: Set<String>, testLinePrefix: String,
        parallelismLevel: ParallelismLevel,
-       successMessage: String) throws {
+       successMessage: String,
+       filters: [NSRegularExpression]) throws {
     let fm = FileManager.default
     var isDir: ObjCBool = false
     let testDirPath =
@@ -79,6 +84,7 @@ class TestRunner {
     self.testLinePrefix = testLinePrefix
     self.parallelismLevel = parallelismLevel
     self.successMessage = successMessage
+    self.filters = filters
   }
 
   func discoverTests() throws -> [TestFile] {
@@ -88,6 +94,14 @@ class TestRunner {
     var files = [TestFile]()
     for case let file as URL in enumerator {
       guard pathExtensions.contains(file.pathExtension) else { continue }
+      let nsPath = file.path as NSString
+      let matchesFilter = filters.contains {
+        return $0.numberOfMatches(
+          in: file.path,
+          range: NSRange(location: 0, length: nsPath.length)
+        ) != 0
+      }
+      guard filters.isEmpty || matchesFilter else { continue }
       let runLines = try RunLineParser.parseRunLines(in: file,
                                                      prefix: testLinePrefix)
       if runLines.isEmpty { continue }
