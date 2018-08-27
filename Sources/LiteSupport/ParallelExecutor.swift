@@ -60,7 +60,7 @@ final class ParallelExecutor<TaskResult> {
   /// Adds a task to run asynchronously on the next worker. Workers are chosen
   /// in a round-robin fashion.
   func addTask(_ work: @escaping () -> TaskResult) {
-    queues[nextTask % queues.count].async(group: group, qos: .userInitiated) {
+    queues[nextTask % queues.count].async(group: group) {
       self.addResult(work())
     }
   }
