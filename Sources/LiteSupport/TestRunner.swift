@@ -7,7 +7,9 @@
 
 import Foundation
 import Rainbow
-import ShellOut
+import Basic
+import Utility
+import POSIX
 import Dispatch
 
 /// Specifies how to parallelize test runs.
@@ -36,7 +38,7 @@ public enum ParallelismLevel {
 class TestRunner {
 
   /// The test directory in which tests reside.
-  let testDir: URL
+  let testDir: Foundation.URL
 
   /// The set of substitutions to apply to each run line.
   let substitutor: Substitutor
@@ -92,7 +94,7 @@ class TestRunner {
     let enumerator = fm.enumerator(at: testDir,
                                    includingPropertiesForKeys: nil)!
     var files = [TestFile]()
-    for case let file as URL in enumerator {
+    for case let file as Foundation.URL in enumerator {
       guard pathExtensions.contains(file.pathExtension) else { continue }
       let nsPath = NSString(string: file.path)
       let matchesFilter = filters.contains {
@@ -250,15 +252,26 @@ class TestRunner {
       let exitCode: Int
       let bash = file.makeCommandLine(line, substitutor: substitutor)
       do {
-        stdout = try shellOut(to: bash)
+        let args = bash.split(separator: " ").map { String($0 as Substring) }
+        let result = try Process.popen(arguments: args)
+        stdout = try result.utf8Output().chomp()
         stderr = ""
-        exitCode = 0
-      } catch let error as ShellOutError {
-        stderr = error.message
-        stdout = error.output
-        exitCode = Int(error.terminationStatus)
+        switch result.exitStatus {
+        case let .terminated(code: code):
+          exitCode = Int(code)
+        case let .signalled(signal: code):
+          exitCode = Int(code)
+        }
+      } catch let error as SystemError {
+        stderr = error.description
+        stdout = ""
+        exitCode = Int(error.exitCode)
+      } catch let error as Basic.Process.Error {
+        stderr = error.description
+        stdout = ""
+        exitCode = Int(EXIT_FAILURE)
       } catch {
-        fatalError("unhandled error")
+        fatalError("\(error)")
       }
       let end = Date()
       results.append(TestResult(line: line,
@@ -269,5 +282,62 @@ class TestRunner {
                                 exitStatus: exitCode))
     }
     return results
+  }
+}
+
+extension SystemError {
+  var exitCode: Int32 {
+    switch self {
+    case .chdir(let errno, _):
+      return errno
+    case .close(let errno):
+      return errno
+    case .dirfd(let errno, _):
+      return errno
+    case .exec(let errno, _, _):
+      return errno
+    case .fgetc(let errno):
+      return errno
+    case .fread(let errno):
+      return errno
+    case .getcwd(let errno):
+      return errno
+    case .mkdir(let errno, _):
+      return errno
+    case .mkdtemp(let errno):
+      return errno
+    case .pipe(let errno):
+      return errno
+    case .posix_spawn(let errno, _):
+      return errno
+    case .popen(let errno, _):
+      return errno
+    case .read(let errno):
+      return errno
+    case .readdir(let errno, _):
+      return errno
+    case .realpath(let errno, _):
+      return errno
+    case .rename(let errno, _, _):
+      return errno
+    case .rmdir(let errno, _):
+      return errno
+    case .setenv(let errno, _):
+      return errno
+    case .stat(let errno, _):
+      return errno
+    case .symlink(let errno, _, _):
+      return errno
+    case .symlinkat(let errno, _):
+      return errno
+    case .unlink(let errno, _):
+      return errno
+    case .unsetenv(let errno, _):
+      return errno
+    case .waitpid(let errno):
+      return errno
+    case .usleep(let errno):
+      return errno
+    }
   }
 }
