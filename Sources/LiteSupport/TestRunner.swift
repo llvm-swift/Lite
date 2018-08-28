@@ -252,7 +252,7 @@ class TestRunner {
       let exitCode: Int
       let bash = file.makeCommandLine(line, substitutor: substitutor)
       do {
-        let args = bash.split(separator: " ").map { String($0 as Substring) }
+        let args = ["/bin/bash", "-c", bash]
         let result = try Process.popen(arguments: args)
         stdout = try result.utf8Output().chomp()
         stderr = ""
