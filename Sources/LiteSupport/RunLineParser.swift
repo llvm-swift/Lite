@@ -76,22 +76,26 @@ enum RunLineParser {
                       pattern: "\(escapedPrefix)\\s*([\\w-]+):(.*)$",
                       options: [.anchorsMatchLines])
     var lines = [RunLine]()
-    let contents = try String(contentsOf: file, encoding: .utf8)
-    let nsString = NSString(string: contents)
-    let range = NSRange(location: 0, length: nsString.length)
-    for match in regex.matches(in: contents, range: range) {
-      let command = nsString.substring(with: match.range(at: 1))
-      let runLine = nsString.substring(with: match.range(at: 2))
-                            .trimmingCharacters(in: .whitespaces)
-      if runLine.isEmpty { continue }
-      let mode: RunLine.Mode
-      switch command {
-      case "RUN": mode = .run
-      case "RUN-NOT": mode = .runNot
-      case "RUN-XFAIL": mode = .runXfail
-      default: continue
+    switch Result(catching: { try String(contentsOf: file, encoding: .utf8) }) {
+    case .failure(_):
+      print("⚠️ could not open '\(file.path)'; skipping test")
+    case let .success(contents):
+      let nsString = NSString(string: contents)
+      let range = NSRange(location: 0, length: nsString.length)
+      for match in regex.matches(in: contents, range: range) {
+        let command = nsString.substring(with: match.range(at: 1))
+        let runLine = nsString.substring(with: match.range(at: 2))
+          .trimmingCharacters(in: .whitespaces)
+        if runLine.isEmpty { continue }
+        let mode: RunLine.Mode
+        switch command {
+        case "RUN": mode = .run
+        case "RUN-NOT": mode = .runNot
+        case "RUN-XFAIL": mode = .runXfail
+        default: continue
+        }
+        lines.append(RunLine(mode: mode, commandLine: runLine))
       }
-      lines.append(RunLine(mode: mode, commandLine: runLine))
     }
     return lines
   }
