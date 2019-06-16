@@ -1,4 +1,4 @@
-// swift-tools-version:4.0
+// swift-tools-version:5.0
 
 import PackageDescription
 
@@ -10,13 +10,13 @@ let package = Package(
       targets: ["LiteSupport"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
-    .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.1.0"),
+    .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.1.5"),
+    .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.4.0"),
   ],
   targets: [
     .target(
       name: "LiteSupport",
-      dependencies: ["Rainbow", "Utility"]),
+      dependencies: ["Rainbow", "SPMUtility"]),
 
     // This needs to be named `lite-test` instead of `lite` because consumers
     // of `lite` should use the target name `lite`.

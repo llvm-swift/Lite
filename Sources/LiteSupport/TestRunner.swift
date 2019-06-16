@@ -8,7 +8,6 @@
 import Foundation
 import Rainbow
 import Basic
-import Utility
 import POSIX
 import Dispatch
 
@@ -254,7 +253,7 @@ class TestRunner {
       do {
         let args = ["/bin/bash", "-c", bash]
         let result = try Process.popen(arguments: args)
-        stdout = try result.utf8Output().chomp()
+        stdout = try result.utf8Output().trimmingCharacters(in: .whitespacesAndNewlines)
         stderr = ""
         switch result.exitStatus {
         case let .terminated(code: code):
