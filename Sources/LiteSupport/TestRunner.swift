@@ -7,8 +7,7 @@
 
 import Foundation
 import Rainbow
-import Basic
-import POSIX
+import TSCBasic
 import Dispatch
 
 /// Specifies how to parallelize test runs.
@@ -265,7 +264,7 @@ class TestRunner {
         stderr = error.description
         stdout = ""
         exitCode = Int(error.exitCode)
-      } catch let error as Basic.Process.Error {
+      } catch let error as TSCBasic.Process.Error {
         stderr = error.description
         stdout = ""
         exitCode = Int(EXIT_FAILURE)
@@ -291,35 +290,13 @@ extension SystemError {
       return errno
     case .close(let errno):
       return errno
-    case .dirfd(let errno, _):
-      return errno
     case .exec(let errno, _, _):
-      return errno
-    case .fgetc(let errno):
-      return errno
-    case .fread(let errno):
-      return errno
-    case .getcwd(let errno):
-      return errno
-    case .mkdir(let errno, _):
-      return errno
-    case .mkdtemp(let errno):
       return errno
     case .pipe(let errno):
       return errno
     case .posix_spawn(let errno, _):
       return errno
-    case .popen(let errno, _):
-      return errno
     case .read(let errno):
-      return errno
-    case .readdir(let errno, _):
-      return errno
-    case .realpath(let errno, _):
-      return errno
-    case .rename(let errno, _, _):
-      return errno
-    case .rmdir(let errno, _):
       return errno
     case .setenv(let errno, _):
       return errno
@@ -327,15 +304,9 @@ extension SystemError {
       return errno
     case .symlink(let errno, _, _):
       return errno
-    case .symlinkat(let errno, _):
-      return errno
-    case .unlink(let errno, _):
-      return errno
     case .unsetenv(let errno, _):
       return errno
     case .waitpid(let errno):
-      return errno
-    case .usleep(let errno):
       return errno
     }
   }
