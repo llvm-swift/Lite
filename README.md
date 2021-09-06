@@ -11,7 +11,7 @@ To use `lite` as a testing tool, you'll need to add `Lite` as a dependency in
 your `Package.swift` file.
 
 ```swift
-.package(url: "https://github.com/silt-lang/Lite.git", from: "0.0.1")
+.package(url: "https://github.com/llvm-swift/Lite.git", from: "0.2.0")
 ```
 
 Then, you'll need to add a target called `lite` to your Package.swift that
