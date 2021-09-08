@@ -38,6 +38,7 @@ jobs:
         run: swift test
 
   windows-test:
+    name: Build on Windows with Swift 5.4
     runs-on: windows-2019
 
     steps:
