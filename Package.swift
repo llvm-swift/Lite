@@ -11,12 +11,12 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.1.5"),
-    .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.4.0"),
+    .package(url: "https://github.com/apple/swift-tools-support-core.git", .upToNextMinor(from: "0.2.4"))
   ],
   targets: [
     .target(
       name: "LiteSupport",
-      dependencies: ["Rainbow", "SPMUtility"]),
+      dependencies: ["Rainbow", "SwiftToolsSupport-auto"]),
 
     // This needs to be named `lite-test` instead of `lite` because consumers
     // of `lite` should use the target name `lite`.
