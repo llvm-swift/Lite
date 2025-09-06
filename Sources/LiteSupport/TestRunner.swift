@@ -7,34 +7,23 @@
 
 import Foundation
 import Rainbow
-import Basic
-import POSIX
 import Dispatch
+import Subprocess
+import Synchronization
 
 /// Specifies how to parallelize test runs.
 public enum ParallelismLevel {
-  /// Parallelize over an explicit number of cores.
-  case explicit(Int)
-
   /// Automatically discover the number of cores on the system and use that.
   case automatic
 
   /// Do not parallelize.
   case none
-
-  /// The number of concurrent processes afforded by this level.
-  var numberOfProcesses: Int {
-    switch self {
-    case .explicit(let n): return n
-    case .none: return 1
-    case .automatic: return ProcessInfo.processInfo.processorCount
-    }
-  }
 }
 
 /// TestRunner is responsible for coordinating a set of tests, running them, and
 /// reporting successes and failures.
 class TestRunner {
+  let printMutex = Mutex(false)
 
   /// The test directory in which tests reside.
   let testDir: Foundation.URL
@@ -111,55 +100,75 @@ class TestRunner {
     return files.sorted { $0.url.path < $1.url.path }
   }
 
+  func runSerially(_ files: [TestFile], prefixLen: Int) async -> [TestResult] {
+    var allResults = [TestResult]()
+    for file in files {
+      let results = await Self.run(file: file, substitutor: substitutor)
+      await self.handleResults(file, results: results, prefixLen: prefixLen)
+      allResults += results
+    }
+    return allResults
+  }
+
+  func runAsync(_ files: [TestFile], prefixLen: Int) async -> [TestResult] {
+    await withTaskGroup(of: (TestFile, [TestResult]).self) { group in
+      for file in files {
+        group.addTask { [substitutor] in
+          let results = await Self.run(file: file, substitutor: substitutor)
+          return (file, results)
+        }
+      }
+
+      var allResults = [TestResult]()
+      for await result in group {
+        await self.handleResults(result.0, results: result.1, prefixLen: prefixLen)
+        allResults += result.1
+      }
+      return allResults
+    }
+  }
+
   /// Runs all the tests in the test directory and all its subdirectories.
   /// - returns: `true` if all tests passed.
-  func run() throws -> Bool {
+  func run() async throws -> Bool {
     let files = try discoverTests()
     if files.isEmpty { return true }
 
     let commonPrefix = files.map { $0.url.path }.commonPrefix
-    let workers = parallelismLevel.numberOfProcesses
     var testDesc = "Running all tests in \(commonPrefix.bold)"
     switch parallelismLevel {
-    case .automatic, .explicit(_):
-      testDesc += " across \(workers) threads"
+    case .automatic:
+      testDesc += " in parallel"
     default: break
     }
     print(testDesc)
 
     let prefixLen = commonPrefix.count
-    let executor = ParallelExecutor<[TestResult]>(numberOfWorkers: workers)
     let realStart = Date()
-    for file in files {
-        executor.addTask {
-          let results = self.run(file: file)
-          self.resultQueue.sync {
-              self.handleResults(file, results: results, prefixLen: prefixLen)
-          }
-          return results
-        }
-    }
-    let allResults = executor.waitForResults()
+
+    let allResults =
+      switch parallelismLevel {
+      case .automatic: await runAsync(files, prefixLen: prefixLen)
+      case .none: await runSerially(files, prefixLen: prefixLen)
+      }
 
     return printSummary(allResults, realStart: realStart)
   }
 
-  func printSummary(_ results: [[TestResult]], realStart: Date) -> Bool {
+  func printSummary(_ results: [TestResult], realStart: Date) -> Bool {
     var passes = 0, failures = 0, xFailures = 0, total = 0
     var time = 0.0
     let realTime = Date().timeIntervalSince(realStart)
-    for fileResults in results {
-      for result in fileResults {
-        time += result.executionTime
-        total += 1
-        switch result.result {
-        case .fail:
-          failures += 1
-        case .pass:
-          passes += 1
-        case .xFail:
-          xFailures += 1
-        }
+    for result in results {
+      time += result.executionTime
+      total += 1
+      switch result.result {
+      case .fail:
+        failures += 1
+      case .pass:
+        passes += 1
+      case .xFail:
+        xFailures += 1
       }
     }
     let testDesc = "\(total) test\(total == 1 ? "" : "s")".bold
@@ -194,8 +203,11 @@ class TestRunner {
   }
 
   /// Prints individual test results for one specific file.
-  func handleResults(_ file: TestFile, results: [TestResult],
-                     prefixLen: Int) {
+  func handleResults(
+    _ file: TestFile,
+    results: [TestResult],
+    prefixLen: Int
+  ) async {
     let path = file.url.path
     let suffixIdx = path.index(path.startIndex, offsetBy: prefixLen,
                                limitedBy: path.endIndex)
@@ -233,8 +245,10 @@ class TestRunner {
           print("      \(lines)")
         }
         print("    command line:")
-        let command = file.makeCommandLine(result.line,
-                                           substitutor: substitutor)
+        let command = await file.makeCommandLine(
+          result.line,
+          substitutor: substitutor
+        )
         print("      \(command)")
       }
     }
@@ -242,33 +256,27 @@ class TestRunner {
 
   /// Runs all the run lines in a given file and returns a test result
   /// with the individual successes or failures.
-  private func run(file: TestFile) -> [TestResult] {
+  private static func run(file: TestFile, substitutor: Substitutor) async -> [TestResult] {
     var results = [TestResult]()
     for line in file.runLines {
       let start = Date()
       let stdout: String
       let stderr: String
       let exitCode: Int
-      let bash = file.makeCommandLine(line, substitutor: substitutor)
+      let bash = await file.makeCommandLine(line, substitutor: substitutor)
       do {
-        let args = ["/bin/bash", "-c", bash]
-        let result = try Process.popen(arguments: args)
-        stdout = try result.utf8Output().trimmingCharacters(in: .whitespacesAndNewlines)
-        stderr = ""
-        switch result.exitStatus {
-        case let .terminated(code: code):
-          exitCode = Int(code)
-        case let .signalled(signal: code):
+        let result = try await Subprocess.run(
+          .name("bash"),
+          arguments: ["-c", bash],
+          output: .string(limit: 1_000_000, encoding: UTF8.self),
+          error: .string(limit: 1_000_000, encoding: UTF8.self)
+        )
+        stdout = result.standardOutput ?? ""
+        stderr = result.standardError ?? ""
+        switch result.terminationStatus {
+        case .exited(let code), .unhandledException(let code):
           exitCode = Int(code)
         }
-      } catch let error as SystemError {
-        stderr = error.description
-        stdout = ""
-        exitCode = Int(error.exitCode)
-      } catch let error as Basic.Process.Error {
-        stderr = error.description
-        stdout = ""
-        exitCode = Int(EXIT_FAILURE)
       } catch {
         fatalError("\(error)")
       }
@@ -281,62 +289,5 @@ class TestRunner {
                                 exitStatus: exitCode))
     }
     return results
-  }
-}
-
-extension SystemError {
-  var exitCode: Int32 {
-    switch self {
-    case .chdir(let errno, _):
-      return errno
-    case .close(let errno):
-      return errno
-    case .dirfd(let errno, _):
-      return errno
-    case .exec(let errno, _, _):
-      return errno
-    case .fgetc(let errno):
-      return errno
-    case .fread(let errno):
-      return errno
-    case .getcwd(let errno):
-      return errno
-    case .mkdir(let errno, _):
-      return errno
-    case .mkdtemp(let errno):
-      return errno
-    case .pipe(let errno):
-      return errno
-    case .posix_spawn(let errno, _):
-      return errno
-    case .popen(let errno, _):
-      return errno
-    case .read(let errno):
-      return errno
-    case .readdir(let errno, _):
-      return errno
-    case .realpath(let errno, _):
-      return errno
-    case .rename(let errno, _, _):
-      return errno
-    case .rmdir(let errno, _):
-      return errno
-    case .setenv(let errno, _):
-      return errno
-    case .stat(let errno, _):
-      return errno
-    case .symlink(let errno, _, _):
-      return errno
-    case .symlinkat(let errno, _):
-      return errno
-    case .unlink(let errno, _):
-      return errno
-    case .unsetenv(let errno, _):
-      return errno
-    case .waitpid(let errno):
-      return errno
-    case .usleep(let errno):
-      return errno
-    }
   }
 }

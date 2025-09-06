@@ -31,19 +31,23 @@ import Foundation
 ///                       machine, to avoid excessive context switching.
 /// - Returns: `true` if all tests passed, `false` if any failed.
 /// - Throws: `LiteError` if there was any issue running tests.
-public func runLite(substitutions: [(String, String)],
-                    pathExtensions: Set<String>,
-                    testDirPath: String?,
-                    testLinePrefix: String,
-                    parallelismLevel: ParallelismLevel = .none,
-                    successMessage: String = "All tests passed! 🎉",
-                    filters: [NSRegularExpression] = []) throws -> Bool {
-  let testRunner = try TestRunner(testDirPath: testDirPath,
-                                  substitutions: substitutions,
-                                  pathExtensions: pathExtensions,
-                                  testLinePrefix: testLinePrefix,
-                                  parallelismLevel: parallelismLevel,
-                                  successMessage: successMessage,
-                                  filters: filters)
-  return try testRunner.run()
+public func runLite(
+  substitutions: [(String, String)],
+  pathExtensions: Set<String>,
+  testDirPath: String?,
+  testLinePrefix: String,
+  parallelismLevel: ParallelismLevel = .none,
+  successMessage: String = "All tests passed! 🎉",
+  filters: [NSRegularExpression] = []
+) async throws -> Bool {
+  let testRunner = try TestRunner(
+    testDirPath: testDirPath,
+    substitutions: substitutions,
+    pathExtensions: pathExtensions,
+    testLinePrefix: testLinePrefix,
+    parallelismLevel: parallelismLevel,
+    successMessage: successMessage,
+    filters: filters
+  )
+  return try await testRunner.run()
 }

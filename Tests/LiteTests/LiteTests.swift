@@ -4,30 +4,18 @@
 ///
 /// This project is released under the MIT license, a copy of which is
 /// available in the repository.
-import XCTest
+import Testing
 @testable import LiteSupport
 
-class LiteTests: XCTestCase {
-
-  func testCommonPrefix() {
+@Suite
+struct LiteTests {
+  @Test
+  func commonPrefix() {
     let strings = ["hello", "help", "heck"]
-    XCTAssertEqual(strings.commonPrefix, "he")
+    #expect(strings.commonPrefix == "he")
 
     let strings2 = ["abc", "bcd", "cde"]
-    XCTAssertEqual(strings2.commonPrefix, "")
-
-    let largePrefix = String(repeating: "a", count: 50)
-    let largeArray = [String](repeating: largePrefix, count: 1000)
-
-    measure {
-      XCTAssertEqual(largeArray.commonPrefix, largePrefix)
-    }
+    #expect(strings2.commonPrefix == "")
   }
-
-  #if !os(macOS)
-  static var allTests = testCase([
-    ("testCommonPrefix", testCommonPrefix)
-  ])
-  #endif
 }
 

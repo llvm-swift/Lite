@@ -9,7 +9,7 @@ import Foundation
 
 /// A Run line is a line in a Lite test file that contains a bash command with
 /// substitutions.
-struct RunLine {
+struct RunLine: Sendable {
   /// The run mode, one of `RUN:`, `RUN-NOT:`, or `RUN-XFAIL:`.
   enum Mode {
     /// Runs the run line with the provided arguments and considers an exit

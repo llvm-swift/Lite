@@ -9,7 +9,7 @@ import Foundation
 
 /// Represents a test that either passed or failed, and contains the run line
 /// that triggered the result.
-struct TestResult {
+struct TestResult: Sendable {
   /// The run line comprising this test.
   let line: RunLine
 
@@ -44,7 +44,7 @@ struct TestFile {
 
   /// Creates a reproducible command to execute a run line for this file.
   func makeCommandLine(_ runLine: RunLine,
-                       substitutor: Substitutor) -> String {
-    return substitutor.substitute(runLine.commandLine, in: url)
+                       substitutor: Substitutor) async -> String {
+    return await substitutor.substitute(runLine.commandLine, in: url)
   }
 }

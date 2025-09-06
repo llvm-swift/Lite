@@ -24,9 +24,9 @@ private func makeTemporaryDirectory() -> URL {
   return tmpDir
 }
 
-class Substitutor {
-  var regexes = [(NSRegularExpression, String)]()
-  lazy private(set) var tempDir = makeTemporaryDirectory()
+actor Substitutor {
+  let regexes: [(NSRegularExpression, String)]
+  let tempDir = makeTemporaryDirectory()
   let fileRegex = try! NSRegularExpression(pattern: "%s")
   let directoryRegex = try! NSRegularExpression(pattern: "%S")
   let tmpFileRegex = try! NSRegularExpression(pattern: "%t")
